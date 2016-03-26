@@ -14,15 +14,19 @@ namespace RecommenderSystem
 
         //private Dictionary<int, string> m_users; //maybe not needed
         private Dictionary<string, Dictionary<string, double>> m_ratings;
+        private Dictionary<string, double> m_userAvgs;
         //private Dictionary<int, MovieDetails> m_movies; // maybe not needed
-        private HashSet<string> m_movies;
-        
+        //private HashSet<string> m_movies;
+        private Dictionary<string, int> m_movies; //movie id and amount of ratings
+
+
         //constructor
         public RecommenderSystem()
         {
             //m_users = new Dictionary<int, string>();
             m_ratings = new Dictionary<string, Dictionary<string, double>>();
-            m_movies = new HashSet<string>();
+            m_movies = new Dictionary<string, int>();
+            m_userAvgs = new Dictionary<string, double>();
             //m_movies = new Dictionary<int, MovieDetails>();
 
         }
@@ -43,7 +47,7 @@ namespace RecommenderSystem
                 if (sFileName.Contains("ratings"))
                 {
                     parseRatings(sr);
-                    calc();
+                    calcAvgs();
                 }
                /* else if (sFileName.Contains("users"))
                 {
@@ -122,23 +126,33 @@ namespace RecommenderSystem
                     //int movieId = Int32.Parse(l[1]);
                     string userId = l[0];
                     string movieId = l[1];
-                    if (!m_movies.Contains(movieId))
-                        m_movies.Add(movieId);
+                    if (!m_movies.ContainsKey(movieId))
+                        m_movies.Add(movieId, 1);
+                    else
+                        m_movies[movieId]++;
                     double rating = Double.Parse(l[2]);
                     if (!m_ratings.ContainsKey(userId))
                     {
                         m_ratings.Add(userId, new Dictionary<string, double>());
+                        m_userAvgs.Add(userId, 0);
                     }
                     m_ratings[userId].Add(movieId, rating);
+                    m_userAvgs[userId] += rating;
                 }
                 line = sr.ReadLine();
             }
             sr.Close();
 
         }
-        private void calc() //for the initial calculations ufter loading ratings file
+        private void calcAvgs() //for the initial calculations ufter loading ratings file
         {
-
+            //calc avg ratings for each user - the sums foreach user has already calculated
+            foreach(string userId in m_ratings.Keys)
+            {
+                int numOfRatings = m_ratings[userId].Count; //check!!
+                double sumOfRatings = m_userAvgs[userId];
+                m_userAvgs[userId] = sumOfRatings / numOfRatings;
+            }
         }
         //return a list of the ids of all the users in the dataset
         public List<string> GetAllUsers()
@@ -149,7 +163,7 @@ namespace RecommenderSystem
         //returns a list of all the items in the dataset
         public List<string> GetAllItems()
         {
-            return m_movies.ToList();
+            return m_movies.Keys.ToList();
         }
 
         //returns the list of all items that the given user has rated in the dataset
@@ -182,9 +196,67 @@ namespace RecommenderSystem
         //predict a rating for a user item pair using the specified method
         public double PredictRating(PredictionMethod m, string sUID, string sIID)
         {
-            throw new NotImplementedException();
+            //check if sUID exist in m_users
+            //check if sIID exist in m_movies
+
+            double ra = m_userAvgs[sUID];
+            Dictionary<string, double> raiDic = new Dictionary<string, double>();
+            double pearsonDenominatorRight = 0;
+            if (m == PredictionMethod.Pearson)
+            {
+                foreach (string mID in m_ratings[sUID].Keys)
+                {
+                    double val = m_ratings[sUID][mID] - ra;
+                    raiDic.Add(mID, val);
+                    pearsonDenominatorRight += Math.Pow(val,2);
+                }
+            }
+            double numerator = 0;
+            double denominator = m_movies[sIID];
+
+            //calc sum of w
+            foreach (string uID in m_ratings.Keys)
+            {
+                if (uID.Equals(sUID))
+                    continue;
+                if (m_ratings[uID].ContainsKey(sIID))
+                {
+                    double wau = 0;
+                    if (m == PredictionMethod.Pearson)
+                        wau = calcWPearson(sUID, uID, raiDic,pearsonDenominatorRight);
+                    else if (m == PredictionMethod.Cosine)
+                        wau = calcWCossim(sUID, uID);
+                    //else random
+                    numerator += (wau * m_ratings[uID][sIID]);
+                }
+                
+            }
+            return (numerator / denominator);
+        }
+        
+        private double calcWPearson(string aID, string uID, Dictionary<string, double> raiDic, double denominatorRight)
+        { 
+            double numerator = 0;
+            double denominatorLeft = 0;
+
+            double ru = m_userAvgs[uID];
+            foreach(string mId in m_ratings[uID].Keys)
+            {
+                if (!raiDic.ContainsKey(mId))
+                    continue;
+                double val = (m_ratings[uID][mId] - ru);
+                numerator += (val * raiDic[mId]);
+                denominatorLeft += Math.Pow(val, 2);               
+            }
+
+            double denominator = (Math.Sqrt(denominatorLeft)) * (Math.Sqrt(denominatorRight));
+            return numerator/denominator;
         }
 
+        private double calcWCossim(string aID, string uID)
+        {
+            return -1;
+        }
         //Compute MAE (mean absolute error) for a set of rating prediction methods over the same user-item pairs
         //cTrials specifies the number of user-item pairs to be tested
         public Dictionary<PredictionMethod, double> ComputeMAE(List<PredictionMethod> lMethods, int cTrials)
