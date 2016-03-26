@@ -194,46 +194,67 @@ namespace RecommenderSystem
         }
 
         //predict a rating for a user item pair using the specified method
-        public double PredictRating(PredictionMethod m, string sUID, string sIID)
+        public double PredictRating(PredictionMethod m,string sUID, string sIID )
         {
-            //check if sUID exist in m_users
-            //check if sIID exist in m_movies
-
-            double ra = m_userAvgs[sUID];
-            Dictionary<string, double> raiDic = new Dictionary<string, double>();
-            double pearsonDenominatorRight = 0;
-            if (m == PredictionMethod.Pearson)
+            if(!m_ratings.ContainsKey(sUID))
             {
-                foreach (string mID in m_ratings[sUID].Keys)
-                {
-                    double val = m_ratings[sUID][mID] - ra;
-                    raiDic.Add(mID, val);
-                    pearsonDenominatorRight += Math.Pow(val,2);
-                }
+                Console.WriteLine("invalid user ID");
+                return -1;
             }
-            double numerator = 0;
-            double denominator = m_movies[sIID];
-
-            //calc sum of w
-            foreach (string uID in m_ratings.Keys)
+            if (!m_movies.ContainsKey(sIID))
             {
-                if (uID.Equals(sUID))
-                    continue;
-                if (m_ratings[uID].ContainsKey(sIID))
+                Console.WriteLine("invalid Item ID");
+                return -1;
+            }
+            if(m== PredictionMethod.Cosine || m == PredictionMethod.Pearson)
+            {
+                double ra = m_userAvgs[sUID];
+                Dictionary<string, double> raiDic = new Dictionary<string, double>();
+                double pearsonDenominatorRight = 0;
+                if (m == PredictionMethod.Pearson)
                 {
-                    double wau = 0;
-                    if (m == PredictionMethod.Pearson)
-                        wau = calcWPearson(sUID, uID, raiDic,pearsonDenominatorRight);
-                    else if (m == PredictionMethod.Cosine)
-                        wau = calcWCossim(sUID, uID);
-                    //else random
-                    numerator += (wau * m_ratings[uID][sIID]);
+                    foreach (string mID in m_ratings[sUID].Keys)
+                    {
+                        double val = m_ratings[sUID][mID] - ra;
+                        raiDic.Add(mID, val);
+                        pearsonDenominatorRight += Math.Pow(val,2);
+                    }
                 }
+                double numerator = 0;
+                double denominator = m_movies[sIID];
+
+                //calc sum of w
+                foreach (string uID in m_ratings.Keys)
+                {
+                    if (uID.Equals(sUID))
+                        continue;
+                    if (m_ratings[uID].ContainsKey(sIID))
+                    {
+                        double wau = 0;
+                        if (m == PredictionMethod.Pearson)
+                            wau = calcWPearson(sUID, uID, raiDic,pearsonDenominatorRight);
+                        else if (m == PredictionMethod.Cosine)
+                            wau = calcWCosine(sUID, uID);
+                        //else random
+                        numerator += (wau * m_ratings[uID][sIID]);
+                    }
                 
+                }
+                return (numerator / denominator);
             }
-            return (numerator / denominator);
+            else
+            {
+                return randomPredictRating(sUID,sIID);
+            }
+
         }
-        
+        private double randomPredictRating(string sUID, string sIID)
+        {
+            Random r = new Random();
+            double randomVal = r.NextDouble();
+            int location = (int)randomVal * (m_ratings[sUID].Keys.Count-1);
+            return m_ratings[sUID].ElementAt(location).Value;
+        }
         private double calcWPearson(string aID, string uID, Dictionary<string, double> raiDic, double denominatorRight)
         { 
             double numerator = 0;
@@ -253,7 +274,7 @@ namespace RecommenderSystem
             return numerator/denominator;
         }
 
-        private double calcWCossim(string aID, string uID)
+        private double calcWCosine(string aID, string uID)
         {
             double numerator = 0;
             double denominatorLeft = 0;
@@ -277,7 +298,67 @@ namespace RecommenderSystem
         //cTrials specifies the number of user-item pairs to be tested
         public Dictionary<PredictionMethod, double> ComputeMAE(List<PredictionMethod> lMethods, int cTrials)
         {
-            throw new NotImplementedException();
+            Dictionary<PredictionMethod, double> ans = new Dictionary<PredictionMethod, double>();
+            Dictionary<int, HashSet<int>> used = new Dictionary<int, HashSet<int>>();
+
+            bool toContinue = true;
+            int iterationNumber = 0;
+            Random r = new Random();
+            double pearsonMAE = 0;
+            double cosineMAE = 0;
+            double randomMAE = 0;
+            while (toContinue)
+            {
+                iterationNumber++;
+                bool foundNotUsed = false;
+                string userID = "";
+                string movieID = "";
+                while (!foundNotUsed)
+                {
+                    double randomU = r.NextDouble();
+                    double randomI = r.NextDouble();
+                    int locationU = (int)randomU * (m_ratings.Keys.Count-1);
+                    userID = m_ratings.Keys.ToList()[locationU]; //check if its better then ElementAt
+                    int locationI = (int)randomI * (m_ratings[userID].Keys.Count-1);
+                    if (!used.ContainsKey(locationU))                   
+                        used.Add(locationU, new HashSet<int>());
+                    else if(used[locationU].Contains(locationI))
+                            continue;
+                    used[locationU].Add(locationI);
+                    movieID = m_ratings[userID].Keys.ToList()[locationI]; 
+                    foundNotUsed = true;
+                }
+                double realRating = m_ratings[userID][movieID];
+                //pearson
+                double pearsonRating = PredictRating(PredictionMethod.Pearson, userID, movieID);
+                double pearsonError = realRating - pearsonRating;
+                //cossim
+                double cosineRating = PredictRating(PredictionMethod.Cosine, userID, movieID);
+                double cosineError = realRating - cosineRating;
+                //random
+                double randomRating = PredictRating(PredictionMethod.Pearson, userID, movieID);
+                double randomError = realRating - randomRating;
+                if(iterationNumber == 1)
+                {
+                    pearsonMAE = pearsonError;
+                    cosineMAE = cosineError;
+                    randomMAE = randomError;
+                    continue;
+                }
+                double pearsonChange = ((pearsonMAE + pearsonError) / iterationNumber) - (pearsonMAE / iterationNumber - 1);
+                double cosineChange = ((cosineMAE + cosineError) / iterationNumber) - (cosineMAE / iterationNumber - 1);
+                double randomChange = ((randomMAE + randomError) / iterationNumber) - (randomMAE / iterationNumber - 1);
+                pearsonMAE += pearsonError;
+                cosineMAE += cosineError;
+                randomMAE += randomError;
+                if (pearsonChange < 0.1 && cosineChange < 0.1 && randomChange < 0.1) //halting condition
+                    toContinue = false;
+
+            }
+            ans.Add(PredictionMethod.Cosine, cosineMAE / iterationNumber);
+            ans.Add(PredictionMethod.Pearson, pearsonMAE / iterationNumber);
+            ans.Add(PredictionMethod.Random, randomMAE / iterationNumber);
+            return ans;
         }
     }
 }
