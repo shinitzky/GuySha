@@ -255,7 +255,23 @@ namespace RecommenderSystem
 
         private double calcWCossim(string aID, string uID)
         {
-            return -1;
+            double numerator = 0;
+            double denominatorLeft = 0;
+            double denominatorRight = 0;
+
+            foreach (string mId in m_ratings[uID].Keys)
+            {
+                if (!m_ratings[aID].ContainsKey(mId))
+                    continue;
+                double rui = m_ratings[uID][mId];
+                double rai = m_ratings[aID][mId];
+                numerator += (rui * rai);
+                denominatorLeft += Math.Pow(rui, 2);
+                denominatorRight += Math.Pow(rai, 2);
+            }
+
+            double denominator = (Math.Sqrt(denominatorLeft)) * (Math.Sqrt(denominatorRight));
+            return numerator / denominator;
         }
         //Compute MAE (mean absolute error) for a set of rating prediction methods over the same user-item pairs
         //cTrials specifies the number of user-item pairs to be tested
