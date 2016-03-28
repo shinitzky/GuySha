@@ -89,8 +89,8 @@ namespace RecommenderSystem
                 line = sr.ReadLine();
             }
             sr.Close();
-
         }
+
         private void calcAvgs() //for the initial calculations ufter loading ratings file
         {
             //calc avg ratings for each user - the sums foreach user has already calculated
@@ -101,6 +101,7 @@ namespace RecommenderSystem
                 m_userAvgs[userId] = sumOfRatings / numOfRatings;
             }
         }
+
         //return a list of the ids of all the users in the dataset
         public List<string> GetAllUsers()
         {
@@ -184,7 +185,7 @@ namespace RecommenderSystem
                             wau = calcWCosine(sUID, uID, cosineDenominatorRight);                                              
                         double left = m_ratings[uID][sIID];
                         double right = wau;
-                        if (wau>0.01) //change this number and check
+                        if (wau>0.001) //change this number and check
                             numerator =numerator+ ( left * right);
                     }
                 }
