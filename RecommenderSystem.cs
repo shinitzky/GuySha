@@ -11,29 +11,18 @@ namespace RecommenderSystem
         public enum PredictionMethod { Pearson, Cosine, Random };
 
         //class members here
-
-        
         private Dictionary<string, Dictionary<string, double>> m_ratings; //users to movies
         private Dictionary<string, double> m_userAvgs;
-        
-        
-        private Dictionary<string, List<string>> movieToUser;
-       
-        
+        //private Dictionary<string, List<string>> movieToUser;
         private Dictionary<string, int> m_movies; //movie id and amount of ratings
-
 
         //constructor
         public RecommenderSystem()
         {
-            
             m_ratings = new Dictionary<string, Dictionary<string, double>>(); //<User <Movie,Rating>>
             m_movies = new Dictionary<string, int>(); 
             m_userAvgs = new Dictionary<string, double>();
-            
-            movieToUser = new Dictionary<string, List<string>>();
-            
-
+           // movieToUser = new Dictionary<string, List<string>>();
         }
 
         //load a datatset 
@@ -57,13 +46,11 @@ namespace RecommenderSystem
 
                 else
                     Console.WriteLine("invalid file name");
-               
             }
             catch(Exception e)
             {
                 Console.WriteLine("Couldn't load file...sorry:)");
             }
-
         }
       
         private void parseRatings(StreamReader sr) //not saving time stamp
@@ -91,20 +78,14 @@ namespace RecommenderSystem
                     m_ratings[userId].Add(movieId, rating);
                     m_userAvgs[userId] += rating; 
 
-
                     //Added Tomer //calculate Weights
-                    if (!movieToUser.ContainsKey(movieId))
+                   /* if (!movieToUser.ContainsKey(movieId))
                     {
                         movieToUser.Add(movieId, new List<string>());
 
                     }
-                    movieToUser[movieId].Add(userId); 
-                    
-
-
-
+                    movieToUser[movieId].Add(userId); */
                 }
-
                 line = sr.ReadLine();
             }
             sr.Close();
@@ -176,17 +157,14 @@ namespace RecommenderSystem
             {
                 double ra = m_userAvgs[sUID];
                 Dictionary<string, double> raiDic = new Dictionary<string, double>();//<movieID,(activeUserRating-activeUserAverage)>
-                double pearsonDenominatorRight = 0;
+                double cosineDenominatorRight = 0;
                 if (m == PredictionMethod.Pearson)
                 {
-                    foreach (string mID in m_ratings[sUID].Keys)//should be only on movies that they both rated. not all the movies of the active user
+                    foreach (string mID in m_ratings[sUID].Keys)
                     {
-                        
                         double val = m_ratings[sUID][mID] - ra;
                         raiDic.Add(mID, val);
-                        pearsonDenominatorRight += Math.Pow(val,2);
-
-                        
+                        cosineDenominatorRight += Math.Pow(m_ratings[sUID][mID], 2);
                     }
                 }
                 double numerator = 0; //?
@@ -201,19 +179,14 @@ namespace RecommenderSystem
                     {
                         double wau = 0;
                         if (m == PredictionMethod.Pearson)
-                            wau = calcWPearson(sUID, uID, raiDic,pearsonDenominatorRight);
+                            wau = calcWPearson(sUID, uID, raiDic);
                         else if (m == PredictionMethod.Cosine)
-                            wau = calcWCosine(sUID, uID);
-                        
-                        //numerator += (wau * m_ratings[uID][sIID]);
-                        
+                            wau = calcWCosine(sUID, uID, cosineDenominatorRight);                                              
                         double left = m_ratings[uID][sIID];
                         double right = wau;
-                        if (wau>0) //only if the calculations are not divided by zero in the functions below
+                        if (wau>0.01) //change this number and check
                             numerator =numerator+ ( left * right);
-                        
                     }
-                
                 }
                 return (numerator / denominator); //should be Ra + num/dem
             }
@@ -221,12 +194,10 @@ namespace RecommenderSystem
             {
                 return randomPredictRating(sUID,sIID);
             }
-
         }   
 
-
                 //predict a rating for a user item pair using the specified method
-        public double PredictRating2(PredictionMethod m, string sUID, string sIID)
+        /*public double PredictRating2(PredictionMethod m, string sUID, string sIID)
         {
             if (!m_ratings.ContainsKey(sUID))
             {
@@ -247,12 +218,6 @@ namespace RecommenderSystem
                 foreach (string mID in m_ratings[sUID].Keys)//should be only on movies that they both rated. not all the movies of the active user
                 {
                     List<string> users = movieToUser[mID]; //all the users that also rated this movie
-
-                        
-                       
-                        
-
-
                  }
                 
                 double numerator = 0; //?
@@ -277,7 +242,6 @@ namespace RecommenderSystem
                         double right = wau;
                         if (wau > 0) //only if the calculations are not divided by zero in the functions below
                             numerator = numerator + (left * right);
-
                     }
 
                 }
@@ -288,7 +252,8 @@ namespace RecommenderSystem
                 return randomPredictRating(sUID, sIID);
             }
 
-        }
+        }*/
+
         private double randomPredictRating(string sUID, string sIID)
         {
             Random r = new Random();
@@ -296,64 +261,59 @@ namespace RecommenderSystem
             int location = (int)randomVal * (m_ratings[sUID].Keys.Count-1);
             return m_ratings[sUID].ElementAt(location).Value;
         }
-        private double calcWPearson(string aID, string uID, Dictionary<string, double> raiDic, double denominatorRight)
+        private double calcWPearson(string aID, string uID, Dictionary<string, double> raiDic)
         { 
             double numerator = 0;
             double denominatorLeft = 0;
-
+            double denominatorRight = 0;
             double ru = m_userAvgs[uID]; //get the average of the other user
             foreach(string mId in m_ratings[uID].Keys) 
             {
                 if (!raiDic.ContainsKey(mId)) //only movies that they both rated
                     continue;
-                double val = (m_ratings[uID][mId] - ru);
-                numerator += (val * raiDic[mId]);
-                denominatorLeft += Math.Pow(val, 2);      //in left dominator we calculate only the movies thay they both watched. not like the calculation in the function above!!! check it         
+                double ruval = (m_ratings[uID][mId] - ru);
+                double raval = raiDic[mId];
+                numerator += (ruval * raval);
+                denominatorLeft += Math.Pow(ruval, 2);
+                denominatorRight+= Math.Pow(raval, 2);
             }
-
             double denominator = (Math.Sqrt(denominatorLeft)) * (Math.Sqrt(denominatorRight));
             if (denominator == 0) //throw exception?
                 return 0; //check this
             return numerator/denominator;
         }
 
-        private double calcWCosine(string aID, string uID)
+        private double calcWCosine(string aID, string uID, double denominatorRight)
         {
             double numerator = 0;
             double denominatorLeft = 0;
-            double denominatorRight = 0;
-
             foreach (string mId in m_ratings[uID].Keys)
             {
+                double rui = m_ratings[uID][mId];
+                denominatorLeft += Math.Pow(rui, 2);
                 if (!m_ratings[aID].ContainsKey(mId))
                     continue;
-                double rui = m_ratings[uID][mId];
                 double rai = m_ratings[aID][mId];
                 numerator += (rui * rai);
-                denominatorLeft += Math.Pow(rui, 2);
-                denominatorRight += Math.Pow(rai, 2);
             }
-
             double denominator = (Math.Sqrt(denominatorLeft)) * (Math.Sqrt(denominatorRight));
             if (denominator == 0)
                 return 0;
             return numerator / denominator;
         }
+
         //Compute MAE (mean absolute error) for a set of rating prediction methods over the same user-item pairs
         //cTrials specifies the number of user-item pairs to be tested
         public Dictionary<PredictionMethod, double> ComputeMAE(List<PredictionMethod> lMethods, int cTrials)
         {
             Dictionary<PredictionMethod, double> ans = new Dictionary<PredictionMethod, double>();
-            Dictionary<int, HashSet<int>> used = new Dictionary<int, HashSet<int>>();
-
-            bool toContinue = true;
-             
+            Dictionary<int, HashSet<int>> used = new Dictionary<int, HashSet<int>>();             
             int iterationNumber = 0;
             Random r = new Random();
             double pearsonMAE = 0;
             double cosineMAE = 0;
             double randomMAE = 0;
-            while (toContinue)
+            while (iterationNumber<cTrials)//changes - hilla
             {
                 iterationNumber++;
                 bool foundNotUsed = false;
@@ -363,7 +323,7 @@ namespace RecommenderSystem
                 {
                     double randomU = r.NextDouble();
                     double randomI = r.NextDouble();
-                    int locationU = (int)(randomU * (m_ratings.Keys.Count-1)); //added more sograim here to prevent multiplying be zero
+                    int locationU = (int)(randomU * (m_ratings.Keys.Count-1)); 
                     userID = m_ratings.Keys.ToList()[locationU]; //check if its better then ElementAt
                     int locationI = (int)(randomI * (m_ratings[userID].Keys.Count-1));
                     if (!used.ContainsKey(locationU))                   
@@ -378,35 +338,19 @@ namespace RecommenderSystem
                 //pearson
                 double pearsonRating = PredictRating(PredictionMethod.Pearson, userID, movieID);
                 double pearsonError = realRating - pearsonRating;
+                pearsonMAE += pearsonError;
                 //cossim
                 double cosineRating = PredictRating(PredictionMethod.Cosine, userID, movieID);
                 double cosineError = realRating - cosineRating;
+                cosineMAE += cosineError;
                 //random
                 double randomRating = PredictRating(PredictionMethod.Pearson, userID, movieID);
                 double randomError = realRating - randomRating;
-                if(iterationNumber == 1)
-                {
-                    pearsonMAE = pearsonError;
-                    cosineMAE = cosineError;
-                    randomMAE = randomError;
-                    continue;
-                }
-                double pearsonChange = ((pearsonMAE + pearsonError) / iterationNumber) - (pearsonMAE / iterationNumber - 1);
-                double cosineChange = ((cosineMAE + cosineError) / iterationNumber) - (cosineMAE / iterationNumber - 1);
-                double randomChange = ((randomMAE + randomError) / iterationNumber) - (randomMAE / iterationNumber - 1);
-                pearsonMAE += pearsonError;
-                cosineMAE += cosineError;
                 randomMAE += randomError;
-               // if (pearsonChange < 0.1 && cosineChange < 0.1 && randomChange < 0.1) //halting condition
-                //    toContinue = false;
-                //iterationNumber++;
-                if (iterationNumber == cTrials) //halting condition
-                    toContinue = false;
-
             }
-            ans.Add(PredictionMethod.Cosine, cosineMAE / iterationNumber);
-            ans.Add(PredictionMethod.Pearson, pearsonMAE / iterationNumber);
-            ans.Add(PredictionMethod.Random, randomMAE / iterationNumber);
+            ans.Add(PredictionMethod.Cosine, cosineMAE / cTrials);
+            ans.Add(PredictionMethod.Pearson, pearsonMAE / cTrials);
+            ans.Add(PredictionMethod.Random, randomMAE / cTrials);
             return ans;
         }
     }
