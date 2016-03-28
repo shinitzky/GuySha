@@ -13,8 +13,9 @@ namespace RecommenderSystem
         //class members here
         private Dictionary<string, Dictionary<string, double>> m_ratings; //users to movies
         private Dictionary<string, double> m_userAvgs;
-        //private Dictionary<string, List<string>> movieToUser;
+        private Dictionary<string, List<string>> movieToUser;
         private Dictionary<string, int> m_movies; //movie id and amount of ratings
+        private Dictionary<string, double> cosineDenominator;
 
         //constructor
         public RecommenderSystem()
@@ -22,7 +23,8 @@ namespace RecommenderSystem
             m_ratings = new Dictionary<string, Dictionary<string, double>>(); //<User <Movie,Rating>>
             m_movies = new Dictionary<string, int>(); 
             m_userAvgs = new Dictionary<string, double>();
-           // movieToUser = new Dictionary<string, List<string>>();
+           movieToUser = new Dictionary<string, List<string>>();
+            cosineDenominator = new Dictionary<string, double>();
         }
 
         //load a datatset 
@@ -78,13 +80,20 @@ namespace RecommenderSystem
                     m_ratings[userId].Add(movieId, rating);
                     m_userAvgs[userId] += rating; 
 
+                    //added tomer
+                    if (!cosineDenominator.ContainsKey(userId))
+                    {
+                        cosineDenominator.Add(userId, 0);
+                    }
+                    cosineDenominator[userId] = cosineDenominator[userId] + Math.Pow(rating,2);
+
                     //Added Tomer //calculate Weights
-                   /* if (!movieToUser.ContainsKey(movieId))
+                   if (!movieToUser.ContainsKey(movieId))
                     {
                         movieToUser.Add(movieId, new List<string>());
 
                     }
-                    movieToUser[movieId].Add(userId); */
+                    movieToUser[movieId].Add(userId); 
                 }
                 line = sr.ReadLine();
             }
@@ -158,14 +167,14 @@ namespace RecommenderSystem
             {
                 double ra = m_userAvgs[sUID];
                 Dictionary<string, double> raiDic = new Dictionary<string, double>();//<movieID,(activeUserRating-activeUserAverage)>
-                double cosineDenominatorRight = 0;
-                if (m == PredictionMethod.Pearson)
+                //double cosineDenominatorRight = 0;
+                if (m == PredictionMethod.Pearson) //why pearson?
                 {
                     foreach (string mID in m_ratings[sUID].Keys)
                     {
                         double val = m_ratings[sUID][mID] - ra;
                         raiDic.Add(mID, val);
-                        cosineDenominatorRight += Math.Pow(m_ratings[sUID][mID], 2);
+                        //cosineDenominatorRight += Math.Pow(m_ratings[sUID][mID], 2); //why its in the if of pearson?? can be calculated in loading the dataset
                     }
                 }
                 double numerator = 0; //?
@@ -182,7 +191,7 @@ namespace RecommenderSystem
                         if (m == PredictionMethod.Pearson)
                             wau = calcWPearson(sUID, uID, raiDic);
                         else if (m == PredictionMethod.Cosine)
-                            wau = calcWCosine(sUID, uID, cosineDenominatorRight);                                              
+                            wau = calcWCosine(sUID, uID);                                              
                         double left = m_ratings[uID][sIID];
                         double right = wau;
                         if (wau>0.001) //change this number and check
@@ -284,20 +293,20 @@ namespace RecommenderSystem
             return numerator/denominator;
         }
 
-        private double calcWCosine(string aID, string uID, double denominatorRight)
+        private double calcWCosine(string aID, string uID) 
         {
             double numerator = 0;
-            double denominatorLeft = 0;
+            //double denominatorLeft = 0;
             foreach (string mId in m_ratings[uID].Keys)
             {
                 double rui = m_ratings[uID][mId];
-                denominatorLeft += Math.Pow(rui, 2);
+                //denominatorLeft += Math.Pow(rui, 2);
                 if (!m_ratings[aID].ContainsKey(mId))
                     continue;
                 double rai = m_ratings[aID][mId];
                 numerator += (rui * rai);
             }
-            double denominator = (Math.Sqrt(denominatorLeft)) * (Math.Sqrt(denominatorRight));
+            double denominator = (cosineDenominator[uID] * cosineDenominator[aID]);
             if (denominator == 0)
                 return 0;
             return numerator / denominator;
