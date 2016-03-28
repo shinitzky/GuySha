@@ -12,7 +12,7 @@ namespace RecommenderSystem
         {
             //Create the recommender system and load the dataset
             RecommenderSystem rs = new RecommenderSystem();
-            rs.Load("rating.dat");
+            rs.Load("C:\\ratings.dat.txt");
 
             //verify that the dataset was properly loaded
             Console.WriteLine("The predicted rating of user 17678 for item 2101441 is " + rs.GetRating("17678", "2101441"));
