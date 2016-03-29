@@ -251,7 +251,7 @@ namespace RecommenderSystem
         {
             Random r = new Random();
             double randomVal = r.NextDouble();
-            int location = (int)randomVal * (m_ratings[sUID].Keys.Count-1);
+            int location = (int)(randomVal * (m_ratings[sUID].Keys.Count-1));
             return m_ratings[sUID].ElementAt(location).Value;
         }
         private double calcWPearson(string aID, string uID)
