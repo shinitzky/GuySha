@@ -234,7 +234,7 @@ namespace RecommenderSystem
                             wau = calcWCosine(sUID, uID);                                              
                         double left = m_ratings[uID][sIID];
                         double right = wau;
-                        if (wau>0.3) //change this number and check
+                       // if (wau>0) //change this number and check
                             numerator =numerator+ ( left * right);
                    // }
                 }
@@ -340,7 +340,7 @@ namespace RecommenderSystem
                 double cosineError = Math.Abs(realRating - cosineRating);
                 cosineMAE += cosineError;
                 //random
-                double randomRating = PredictRating(PredictionMethod.Pearson, userID, movieID);
+                double randomRating = PredictRating(PredictionMethod.Random , userID, movieID);
                 double randomError = Math.Abs(realRating - randomRating);
                 randomMAE += randomError;
             }
