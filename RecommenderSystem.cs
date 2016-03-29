@@ -18,7 +18,7 @@ namespace RecommenderSystem
         private Dictionary<string, double> cosineDenominator;
 
 
-        private Dictionary<string,Dictionary<string,double>> raiDic_AllUsers;
+        private Dictionary<string,Dictionary<string,double>> raiDic_AllUsers; //KEY = USERID. VALUE = <MOVIE,VAL> SO THAT VALUE IS THE DIFFERENCE (RATING-AVARAGE)
         private Dictionary<string, double> currentAvarage;
             
 
@@ -31,7 +31,7 @@ namespace RecommenderSystem
            movieToUser = new Dictionary<string, List<string>>();
             cosineDenominator = new Dictionary<string, double>();
             raiDic_AllUsers = new Dictionary<string, Dictionary<string, double>>();
-            currentAvarage = new Dictionary<string, double>();
+            currentAvarage = new Dictionary<string, double>(); //not sure if we need it
             
             
         }
@@ -105,6 +105,7 @@ namespace RecommenderSystem
                     }
                     movieToUser[movieId].Add(userId); 
 
+                    //not sure if we need it
                     if (!currentAvarage.ContainsKey(userId))
                     {
                         currentAvarage.Add(userId, 0);
