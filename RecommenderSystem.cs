@@ -250,10 +250,24 @@ namespace RecommenderSystem
 
         private double randomPredictRating(string sUID, string sIID)
         {
+            double sumOfRatings = m_ratings[sUID].Keys.Count * m_userAvgs[sUID];
+            SortedSet<double> set = new SortedSet<double>();
+            foreach(double rating in m_ratings[sUID].Values)
+            {
+                set.Add(rating / sumOfRatings);
+            }
             Random r = new Random();
             double randomVal = r.NextDouble();
-            int location = (int)(randomVal * (m_ratings[sUID].Keys.Count-1));
-            return m_ratings[sUID].ElementAt(location).Value;
+            double ans = 0;
+            foreach(double d in set)
+            {
+                if(d>= randomVal)
+                {
+                    ans = d;
+                    break;
+                }
+            }
+            return ans;
         }
         private double calcWPearson(string aID, string uID)
         {
