@@ -259,15 +259,17 @@ namespace RecommenderSystem
             Random r = new Random();
             double randomVal = r.NextDouble();
             double ans = 0;
+            double sumD = 0;
             foreach(double d in set)
             {
-                if(d>= randomVal)
+                sumD += d;
+                if(sumD>= randomVal)
                 {
                     ans = d;
                     break;
                 }
             }
-            return ans;
+            return ans* sumOfRatings;
         }
         private double calcWPearson(string aID, string uID)
         {
