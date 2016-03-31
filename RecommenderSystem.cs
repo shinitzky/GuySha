@@ -14,7 +14,7 @@ namespace RecommenderSystem
         private Dictionary<string, Dictionary<string, double>> m_ratings; //users to movies
         private Dictionary<string, double> m_userAvgs;
         private Dictionary<string, List<string>> movieToUser;
-        private Dictionary<string, int> m_movies; //movie id and amount of ratings
+       // private Dictionary<string, int> m_movies; //movie id and amount of ratings
         private Dictionary<string, double> cosineDenominator;
 
         private Dictionary<string,Dictionary<string,double>> raiDic_AllUsers; //KEY = USERID. VALUE = <MOVIE,VAL> SO THAT VALUE IS THE DIFFERENCE (RATING-AVARAGE)
@@ -25,7 +25,7 @@ namespace RecommenderSystem
         public RecommenderSystem()
         {
             m_ratings = new Dictionary<string, Dictionary<string, double>>(); //<User <Movie,Rating>>
-            m_movies = new Dictionary<string, int>(); 
+           // m_movies = new Dictionary<string, int>(); 
             m_userAvgs = new Dictionary<string, double>();
             movieToUser = new Dictionary<string, List<string>>();
             cosineDenominator = new Dictionary<string, double>();
@@ -74,10 +74,10 @@ namespace RecommenderSystem
                 {
                     string userId = l[0];
                     string movieId = l[1];
-                    if (!m_movies.ContainsKey(movieId))
+                    /*if (!m_movies.ContainsKey(movieId))
                         m_movies.Add(movieId, 1);
                     else
-                        m_movies[movieId]++;
+                        m_movies[movieId]++;*/
                     double rating = Double.Parse(l[2]);
                     if (!m_ratings.ContainsKey(userId))
                     {
@@ -154,7 +154,7 @@ namespace RecommenderSystem
         //returns a list of all the items in the dataset
         public List<string> GetAllItems()
         {
-            return m_movies.Keys.ToList();
+            return movieToUser.Keys.ToList();
         }
 
         //returns the list of all items that the given user has rated in the dataset
@@ -192,7 +192,7 @@ namespace RecommenderSystem
                 Console.WriteLine("invalid user ID");
                 return -1;
             }
-            if (!m_movies.ContainsKey(sIID))
+            if (!movieToUser.ContainsKey(sIID))
             {
                 Console.WriteLine("invalid Item ID");
                 return -1;
@@ -220,30 +220,37 @@ namespace RecommenderSystem
                 */
                 double numerator = 0;
                 double denominator = 0;
-                //double denominator = m_movies[sIID]; //check this!!
-                //SortedSet<double> w = new SortedSet<double>();
-                //calc sum of w
-                //foreach (string uID in m_ratings.Keys) //we can go here only on the users that also rated the movie!
                 foreach (string uID in movieToUser[sIID])
                 {
                     if (uID.Equals(sUID))
                         continue;
                     double wau = 0;
+                    double right = (m_ratings[uID][sIID] - m_userAvgs[uID]); //does it need to be Abs value??
                     if (m == PredictionMethod.Pearson)
-                        wau = calcWPearson(sUID, uID, sIID);
-                    else if (m == PredictionMethod.Cosine)
-                        wau = calcWCosine(sUID, uID, sIID);                                              
-                    double right = (m_ratings[uID][sIID] - m_userAvgs[uID]);
-                    if (wau >= 0.1)
                     {
+                        wau = calcWPearson(sUID, uID, sIID);
+                        if (wau >= 0.1)
+                        {
+                            numerator += (wau * right);
+                            denominator += wau;
+                        }
+                    }
+                    else if (m == PredictionMethod.Cosine)
+                    {
+                        wau = calcWCosine(sUID, uID, sIID);
                         numerator += (wau * right);
                         denominator += wau;
-                        //w.Add(wau);
                     }
-                        
+
                 }
-                double ans = (numerator / denominator);
-                return ans + m_userAvgs[sUID]; //should be Ra + num/dem
+                double maxRating = m_ratings[sUID].Values.Max();
+                double ans = m_userAvgs[sUID];
+                if (numerator == 0 && denominator == 0)
+                    return ans;
+                ans += (numerator / denominator);
+                if (ans > maxRating) //!!
+                    return maxRating;
+                return ans; //should be Ra + num/dem
             }
             else//else random
             {
@@ -255,7 +262,7 @@ namespace RecommenderSystem
         {
             Random r = new Random();
             double random = r.NextDouble();
-            List<double> uRatings = m_ratings[sUID].Values.ToList();
+            List<double> uRatings = new List<double> (m_ratings[sUID].Values.ToList());
             if (m_ratings[sUID].ContainsKey(sIID))//if the user rated the movie don't consider it in the prediction
             {
                 double rui = m_ratings[sUID][sIID];
@@ -375,9 +382,12 @@ namespace RecommenderSystem
                 double randomError = Math.Abs(realRating - randomRating);
                 randomMAE += randomError;
             }
-            ans.Add(PredictionMethod.Cosine, cosineMAE / cTrials);
-            ans.Add(PredictionMethod.Pearson, pearsonMAE / cTrials);
-            ans.Add(PredictionMethod.Random, randomMAE / cTrials);
+            if(lMethods.Contains(PredictionMethod.Cosine))
+                ans.Add(PredictionMethod.Cosine, cosineMAE / cTrials);
+            if(lMethods.Contains(PredictionMethod.Pearson))
+                ans.Add(PredictionMethod.Pearson, pearsonMAE / cTrials);
+            if(lMethods.Contains(PredictionMethod.Random))
+                ans.Add(PredictionMethod.Random, randomMAE / cTrials);
             return ans;
         }
     }

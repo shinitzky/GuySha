@@ -13,7 +13,7 @@ namespace RecommenderSystem
             //Create the recommender system and load the dataset
 
             RecommenderSystem rs = new RecommenderSystem();
-            rs.Load("C:\\ratings.dat.txt");
+            rs.Load("ratings.dat.txt");
 
 
 
