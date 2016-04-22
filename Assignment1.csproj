@@ -43,7 +43,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MovieDetails.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="RecommenderSystem.cs" />
   </ItemGroup>
